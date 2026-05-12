@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Galaxy Explorer — Interactive Exoplanet Discovery</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #030712;
+    --surface: rgba(255,255,255,0.04);
+    --surface-hover: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.1);
+    --border-bright: rgba(255,255,255,0.2);
+    --text: #f1f5f9;
+    --text-muted: rgba(241,245,249,0.5);
+    --text-dim: rgba(241,245,249,0.3);
+    --accent: #60a5fa;
+    --accent-dim: rgba(96,165,250,0.2);
+    --gold: #fbbf24;
+    --gold-dim: rgba(251,191,36,0.15);
+    --teal: #2dd4bf;
+    --teal-dim: rgba(45,212,191,0.15);
+    --red: #f87171;
+    --green: #4ade80;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    overflow: hidden;
+  }
+
+  canvas { display: block; }
+
+  /* ── HUD Layout ─────────────────────────────────── */
+  #hud {
+    position: fixed; inset: 0; pointer-events: none;
+    z-index: 10;
+  }
+
+  /* ── Top bar ── */
+  #topbar {
+    position: absolute; top: 0; left: 0; right: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 28px;
+    background: linear-gradient(to bottom, rgba(3,7,18,0.9) 0%, transparent 100%);
+    pointer-events: auto;
+  }
+
+  #title-block h1 {
+    font-size: 1.25rem; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  #title-block h1 span.dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--teal);
+    box-shadow: 0 0 8px var(--teal); animation: pulse 2s ease-in-out infinite;
+  }
+
+  #title-block p {
+    font-size: 0.75rem; color: var(--text-muted);
+    margin-top: 3px; letter-spacing: 0.04em;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  #top-controls {
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .btn {
+    pointer-events: auto; cursor: pointer;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.7rem; font-weight: 500; letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { background: var(--surface-hover); color: var(--text); border-color: var(--border-bright); }
+  .btn.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+  .btn.warn { background: var(--gold-dim); color: var(--gold); border-color: rgba(251,191,36,0.4); }
+
+  /* ── FPS Badge ── */
+  #fps-badge {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem; padding: 6px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    min-width: 80px; text-align: center;
+  }
+
+  /* ── Left side stats ── */
+  #stats-panel {
+    position: absolute; left: 28px; bottom: 80px;
+    display: flex; flex-direction: column; gap: 8px;
+    pointer-events: none;
+  }
+
+  .stat-chip {
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    padding: 6px 12px;
+    background: rgba(3,7,18,0.7);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .stat-chip span { color: var(--teal); font-weight: 700; }
+
+  /* ── Bottom instructions ── */
+  #instructions {
+    position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 24px;
+    font-size: 0.7rem; color: var(--text-dim);
+    letter-spacing: 0.06em; text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .key {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; font-size: 0.6rem;
+    border: 1px solid var(--border); border-radius: 4px;
+    font-family: 'Space Mono', monospace; color: var(--text-muted);
+    margin-right: 4px;
+  }
+  .instr-item { display: flex; align-items: center; }
+
+  /* ── Star info panel ── */
+  #star-panel {
+    position: absolute; right: 28px; top: 50%; transform: translateY(-50%);
+    width: 320px;
+    background: rgba(3,7,18,0.85);
+    border: 1px solid var(--border-bright);
+    border-radius: 12px;
+    backdrop-filter: blur(20px);
+    pointer-events: auto;
+    overflow: hidden;
+    opacity: 0; transition: opacity 0.35s ease, transform 0.35s ease;
+    transform: translateY(-50%) translateX(20px);
+  }
+  #star-panel.visible {
+    opacity: 1; transform: translateY(-50%) translateX(0);
+  }
+
+  #panel-header {
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+
+  #panel-star-name {
+    font-size: 1rem; font-weight: 600; color: var(--gold);
+    letter-spacing: 0.05em;
+  }
+  #panel-star-type {
+    font-size: 0.7rem; color: var(--text-muted);
+    margin-top: 3px; letter-spacing: 0.05em;
+  }
+
+  #close-panel {
+    cursor: pointer; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text-muted); font-size: 1rem;
+    transition: all 0.15s; background: transparent;
+    flex-shrink: 0;
+  }
+  #close-panel:hover { color: var(--text); border-color: var(--border-bright); background: var(--surface-hover); }
+
+  #panel-body { padding: 16px 20px; }
+
+  .panel-section-title {
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--text-dim); margin-bottom: 10px; margin-top: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+  .panel-section-title:first-child { margin-top: 0; }
+
+  .data-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; font-size: 0.8rem;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .data-row:last-child { border-bottom: none; }
+  .data-label { color: var(--text-muted); }
+  .data-val { color: var(--text); font-family: 'Space Mono', monospace; font-size: 0.75rem; }
+  .data-val.highlight { color: var(--teal); }
+  .data-val.gold { color: var(--gold); }
+
+  #exo-list { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+
+  .exo-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+  }
+  .exo-name {
+    font-size: 0.8rem; font-weight: 600; color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .exo-data {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .exo-datum { font-size: 0.7rem; color: var(--text-muted); }
+  .exo-datum strong { color: var(--text); font-family: 'Space Mono', monospace; font-size: 0.65rem; }
+
+  #panel-loading {
+    padding: 24px; text-align: center;
+    font-size: 0.75rem; color: var(--text-dim);
+    display: none;
+  }
+  .loader-dots span {
+    display: inline-block; width: 5px; height: 5px;
+    border-radius: 50%; background: var(--accent);
+    margin: 0 2px; animation: bounce 1.2s ease-in-out infinite;
+  }
+  .loader-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loader-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-8px)} }
+
+  #panel-no-data { display: none; padding: 16px 20px; font-size: 0.78rem; color: var(--text-muted); }
+
+  /* ── Tooltip ── */
+  #tooltip {
+    position: fixed; pointer-events: none;
+    font-size: 0.7rem; font-family: 'Space Mono', monospace;
+    padding: 5px 10px;
+    background: rgba(3,7,18,0.9);
+    border: 1px solid var(--border-bright);
+    border-radius: 4px; color: var(--text);
+    white-space: nowrap; z-index: 20;
+    opacity: 0; transition: opacity 0.15s;
+  }
+
+  /* ── Low power banner ── */
+  #lp-banner {
+    position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%);
+    background: var(--gold-dim); border: 1px solid rgba(251,191,36,0.3);
+    border-radius: 8px; padding: 10px 16px;
+    font-size: 0.72rem; color: var(--gold);
+    display: none; align-items: center; gap: 10px;
+    white-space: nowrap; pointer-events: auto;
+  }
+  #lp-banner.show { display: flex; }
+
+  /* ── Crosshair cursor for canvas ── */
+  #canvas-wrap { cursor: crosshair; }
+
+  /* ── Nebula overlay glow ── */
+  #nebula-glow {
+    position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background: radial-gradient(ellipse 60% 60% at 50% 50%, rgba(96,165,250,0.03) 0%, transparent 70%);
+  }
+</style>
+</head>
+<body>
+
+<div id="nebula-glow"></div>
+<div id="canvas-wrap"><canvas id="c"></canvas></div>
+<div id="tooltip"></div>
+
+<div id="hud">
+  <!-- Top bar -->
+  <div id="topbar">
+    <div id="title-block">
+      <h1><span class="dot"></span> Galaxy Explorer</h1>
+      <p>Milky Way Simulation · Live NASA Exoplanet Data</p>
+    </div>
+    <div id="top-controls">
+      <div id="fps-badge">-- FPS</div>
+      <button class="btn" id="btn-rotate" title="Toggle auto-rotation">⟳ Rotate</button>
+      <button class="btn" id="btn-lowpower" title="Toggle low-power mode">⚡ Low Power</button>
+      <button class="btn" id="btn-reset" title="Reset camera">⊕ Reset</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div id="stats-panel">
+    <div class="stat-chip">Stars rendered: <span id="stat-count">—</span></div>
+    <div class="stat-chip">Galaxy arms: <span id="stat-arms">4</span></div>
+    <div class="stat-chip">Rotation: <span id="stat-rot">—</span>°</div>
+  </div>
+
+  <!-- Star panel -->
+  <div id="star-panel">
+    <div id="panel-header">
+      <div>
+        <div id="panel-star-name">—</div>
+        <div id="panel-star-type">—</div>
+      </div>
+      <button id="close-panel">✕</button>
+    </div>
+    <div id="panel-body">
+      <div id="panel-loading">
+        <div class="loader-dots"><span></span><span></span><span></span></div>
+        <div style="margin-top:10px">Querying NASA Exoplanet Archive…</div>
+      </div>
+      <div id="panel-data-wrap">
+        <div class="panel-section-title">Star Properties</div>
+        <div class="data-row"><span class="data-label">Designation</span><span class="data-val highlight" id="d-name">—</span></div>
+        <div class="data-row"><span class="data-label">Temperature</span><span class="data-val" id="d-temp">—</span></div>
+        <div class="data-row"><span class="data-label">Color class</span><span class="data-val gold" id="d-class">—</span></div>
+        <div class="data-row"><span class="data-label">Distance</span><span class="data-val" id="d-dist">—</span></div>
+        <div class="data-row"><span class="data-label">Galaxy arm</span><span class="data-val" id="d-arm">—</span></div>
+
+        <div class="panel-section-title">Exoplanets (NASA)</div>
+        <div id="exo-list"><div style="color:var(--text-dim);font-size:0.75rem">Loading…</div></div>
+      </div>
+      <div id="panel-no-data">No exoplanet data matched for this star region.</div>
+    </div>
+  </div>
+
+  <!-- Bottom instructions -->
+  <div id="instructions">
+    <div class="instr-item"><span class="key">↻</span> Drag to orbit</div>
+    <div class="instr-item"><span class="key">⊕</span> Scroll to zoom</div>
+    <div class="instr-item"><span class="key">★</span> Click star → exoplanet data</div>
+  </div>
+
+  <!-- Low power banner -->
+  <div id="lp-banner">
+    <span>⚠</span>
+    <span>FPS dropped below 30. <strong>Low Power Mode</strong> is active.</span>
+    <button class="btn" style="padding:4px 10px; font-size:0.65rem" onclick="document.getElementById('lp-banner').classList.remove('show')">Dismiss</button>
+  </div>
+</div>
+
+<!-- Three.js from CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════
+const CFG = {
+  ARMS: 4,
+  STARS_HQ: 80000,
+  STARS_LQ: 20000,
+  ARM_SPREAD: 0.35,
+  ARM_TWIST: 4.5,
+  CORE_STARS: 5000,
+  HAZE_STARS: 8000,
+  STAR_SIZE_HQ: 1.8,
+  STAR_SIZE_LQ: 2.4,
+  GALAXY_RADIUS: 14,
+  CAMERA_START: [0, 12, 22],
+};
+
+const ARM_NAMES = ['Sagittarius Arm', 'Perseus Arm', 'Orion Arm', 'Cygnus Arm'];
+const STAR_CLASSES = ['O','B','A','F','G','K','M'];
+const CLASS_TEMPS = {O:'30,000–60,000 K', B:'10,000–30,000 K', A:'7,500–10,000 K', F:'6,000–7,500 K', G:'5,200–6,000 K', K:'3,700–5,200 K', M:'2,400–3,700 K'};
+
+// ═══════════════════════════════════════════════
+// THREE.JS SETUP
+// ═══════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x030712, 1);
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
+camera.position.set(...CFG.CAMERA_START);
+camera.lookAt(0, 0, 0);
+
+// ── Resize ──
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ═══════════════════════════════════════════════
+// ORBIT CONTROLS (manual — no import needed)
+// ═══════════════════════════════════════════════
+const orbit = {
+  target: new THREE.Vector3(0, 0, 0),
+  spherical: new THREE.Spherical().setFromVector3(camera.position.clone().sub(new THREE.Vector3(0,0,0))),
+  dragging: false,
+  lastMouse: { x:0, y:0 },
+  dampFactor: 0.1,
+  _dTheta: 0, _dPhi: 0,
+};
+orbit.spherical.setFromVector3(camera.position);
+
+canvas.addEventListener('mousedown', e => { orbit.dragging = true; orbit.lastMouse = {x:e.clientX,y:e.clientY}; });
+window.addEventListener('mouseup', () => { orbit.dragging = false; });
+window.addEventListener('mousemove', e => {
+  if (!orbit.dragging) return;
+  const dx = (e.clientX - orbit.lastMouse.x) * 0.005;
+  const dy = (e.clientY - orbit.lastMouse.y) * 0.005;
+  orbit._dTheta -= dx;
+  orbit._dPhi -= dy;
+  orbit.lastMouse = {x:e.clientX, y:e.clientY};
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  orbit.spherical.radius = Math.max(4, Math.min(60, orbit.spherical.radius + e.deltaY * 0.02));
+}, { passive: false });
+
+// Touch support
+let touchStart = null;
+canvas.addEventListener('touchstart', e => { if(e.touches.length===1){ orbit.dragging=true; touchStart={x:e.touches[0].clientX,y:e.touches[0].clientY}; orbit.lastMouse=touchStart; } });
+canvas.addEventListener('touchend', () => { orbit.dragging=false; });
+canvas.addEventListener('touchmove', e => {
+  if(!orbit.dragging||!touchStart) return;
+  e.preventDefault();
+  const dx = (e.touches[0].clientX - orbit.lastMouse.x)*0.006;
+  const dy = (e.touches[0].clientY - orbit.lastMouse.y)*0.006;
+  orbit._dTheta -= dx; orbit._dPhi -= dy;
+  orbit.lastMouse = {x:e.touches[0].clientX, y:e.touches[0].clientY};
+},{ passive:false });
+
+function updateCamera() {
+  orbit.spherical.theta += orbit._dTheta;
+  orbit.spherical.phi = Math.max(0.05, Math.min(Math.PI-0.05, orbit.spherical.phi + orbit._dPhi));
+  orbit._dTheta *= 0.85;
+  orbit._dPhi *= 0.85;
+  const pos = new THREE.Vector3().setFromSpherical(orbit.spherical).add(orbit.target);
+  camera.position.copy(pos);
+  camera.lookAt(orbit.target);
+}
+
+// ═══════════════════════════════════════════════
+// GALAXY GENERATION
+// ═══════════════════════════════════════════════
+let galaxyMesh = null, coreMesh = null, hazeMesh = null;
+let starArmIndex = [];    // which arm each main star belongs to
+let starPositions3D = []; // Vector3 for raycasting helpers
+
+function buildGalaxy(count) {
+  if (galaxyMesh) { scene.remove(galaxyMesh); galaxyMesh.geometry.dispose(); galaxyMesh.material.dispose(); }
+  if (coreMesh)   { scene.remove(coreMesh); coreMesh.geometry.dispose(); coreMesh.material.dispose(); }
+  if (hazeMesh)   { scene.remove(hazeMesh); hazeMesh.geometry.dispose(); hazeMesh.material.dispose(); }
+
+  starArmIndex = [];
+  starPositions3D = [];
+
+  // ── Spiral arms ──
+  const posArr = [], colArr = [], sizeArr = [];
+  const starsPerArm = Math.floor(count / CFG.ARMS);
+
+  for (let arm = 0; arm < CFG.ARMS; arm++) {
+    const armAngle = (arm / CFG.ARMS) * Math.PI * 2;
+    for (let i = 0; i < starsPerArm; i++) {
+      const t = Math.pow(Math.random(), 0.6);  // concentrate inward
+      const r = t * CFG.GALAXY_RADIUS;
+      const theta = armAngle + t * CFG.ARM_TWIST + (Math.random() - 0.5) * CFG.ARM_SPREAD * (1 + (1 - t) * 2);
+      const spread = CFG.ARM_SPREAD * r * 0.12;
+      const x = Math.cos(theta) * r + (Math.random()-0.5)*spread;
+      const y = (Math.random()-0.5) * 0.18 * r * 0.5;
+      const z = Math.sin(theta) * r + (Math.random()-0.5)*spread;
+
+      posArr.push(x, y, z);
+      starPositions3D.push(new THREE.Vector3(x, y, z));
+      starArmIndex.push(arm);
+
+      // Color: blueish outer, warm inner
+      const warmth = t;
+      const col = starColor(arm, warmth, Math.random());
+      colArr.push(col.r, col.g, col.b);
+      sizeArr.push(0.5 + Math.random() * 1.5);
+    }
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colArr, 3));
+  geo.setAttribute('size', new THREE.Float32BufferAttribute(sizeArr, 1));
+
+  const mat = new THREE.ShaderMaterial({
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: { uSize: { value: count === CFG.STARS_HQ ? CFG.STAR_SIZE_HQ : CFG.STAR_SIZE_LQ }, uPixelRatio: { value: renderer.getPixelRatio() } },
+    vertexShader: `
+      attribute float size;
+      varying vec3 vColor;
+      uniform float uSize;
+      uniform float uPixelRatio;
+      void main() {
+        vColor = color;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = size * uSize * uPixelRatio * (300.0 / -mv.z);
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      void main() {
+        float d = distance(gl_PointCoord, vec2(0.5));
+        if(d > 0.5) discard;
+        float a = 1.0 - smoothstep(0.1, 0.5, d);
+        gl_FragColor = vec4(vColor, a);
+      }
+    `
+  });
+
+  galaxyMesh = new THREE.Points(geo, mat);
+  scene.add(galaxyMesh);
+  document.getElementById('stat-count').textContent = (count + CFG.CORE_STARS + CFG.HAZE_STARS).toLocaleString();
+
+  // ── Core glow ──
+  const corePos = [], coreCol = [];
+  for (let i = 0; i < CFG.CORE_STARS; i++) {
+    const r = Math.pow(Math.random(), 2) * 2.5;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = (Math.random() - 0.5) * 0.4;
+    corePos.push(Math.cos(theta)*r*Math.cos(phi), Math.sin(phi)*r*0.3, Math.sin(theta)*r*Math.cos(phi));
+    const c = new THREE.Color().setHSL(0.08 + Math.random()*0.06, 0.9, 0.7 + Math.random()*0.3);
+    coreCol.push(c.r, c.g, c.b);
+  }
+  const cGeo = new THREE.BufferGeometry();
+  cGeo.setAttribute('position', new THREE.Float32BufferAttribute(corePos, 3));
+  cGeo.setAttribute('color', new THREE.Float32BufferAttribute(coreCol, 3));
+  const cMat = new THREE.PointsMaterial({ vertexColors: true, size: 0.08, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+  coreMesh = new THREE.Points(cGeo, cMat);
+  scene.add(coreMesh);
+
+  // ── Background haze / distant galaxy ──
+  const hazePos = [], hazeCol = [];
+  for (let i = 0; i < CFG.HAZE_STARS; i++) {
+    const r = 12 + Math.random() * 20;
+    const theta = Math.random() * Math.PI * 2;
+    const y = (Math.random()-0.5) * 3;
+    hazePos.push(Math.cos(theta)*r, y, Math.sin(theta)*r);
+    const c = new THREE.Color().setHSL(0.6 + Math.random()*0.15, 0.3, 0.2 + Math.random()*0.3);
+    hazeCol.push(c.r, c.g, c.b);
+  }
+  const hGeo = new THREE.BufferGeometry();
+  hGeo.setAttribute('position', new THREE.Float32BufferAttribute(hazePos, 3));
+  hGeo.setAttribute('color', new THREE.Float32BufferAttribute(hazeCol, 3));
+  const hMat = new THREE.PointsMaterial({ vertexColors: true, size: 0.04, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.6 });
+  hazeMesh = new THREE.Points(hGeo, hMat);
+  scene.add(hazeMesh);
+
+  // ── Background star field ──
+  if (!scene.getObjectByName('bgstars')) {
+    const bgPos = [];
+    for (let i = 0; i < 3000; i++) {
+      const r = 50 + Math.random() * 100;
+      bgPos.push((Math.random()-0.5)*r, (Math.random()-0.5)*r, (Math.random()-0.5)*r);
+    }
+    const bgGeo = new THREE.BufferGeometry();
+    bgGeo.setAttribute('position', new THREE.Float32BufferAttribute(bgPos, 3));
+    const bgMat = new THREE.PointsMaterial({ color: 0xaaaacc, size: 0.05, transparent: true, opacity: 0.5 });
+    const bg = new THREE.Points(bgGeo, bgMat);
+    bg.name = 'bgstars';
+    scene.add(bg);
+  }
+}
+
+function starColor(arm, warmth, rand) {
+  const palettes = [
+    [0.55, 0.65],  // blue-white
+    [0.08, 0.15],  // orange-yellow
+    [0.6,  0.7 ],  // blue-purple
+    [0.02, 0.10],  // red-orange
+  ];
+  const [hMin, hMax] = palettes[arm];
+  const h = warmth < 0.5 ? hMin : hMin + (hMax - hMin) * (warmth * 0.5);
+  const s = 0.5 + rand * 0.5;
+  const l = 0.55 + rand * 0.4;
+  return new THREE.Color().setHSL(h, s, l);
+}
+
+// ═══════════════════════════════════════════════
+// LOW POWER MODE
+// ═══════════════════════════════════════════════
+let lowPower = false;
+let autoLowPower = false;
+
+function setLowPower(val, auto=false) {
+  lowPower = val;
+  const btn = document.getElementById('btn-lowpower');
+  if (val) {
+    buildGalaxy(CFG.STARS_LQ);
+    btn.classList.add('warn');
+    btn.textContent = '⚡ Low Power: ON';
+    if (auto) { autoLowPower = true; document.getElementById('lp-banner').classList.add('show'); }
+  } else {
+    buildGalaxy(CFG.STARS_HQ);
+    btn.classList.remove('warn');
+    btn.textContent = '⚡ Low Power';
+    autoLowPower = false;
+    document.getElementById('lp-banner').classList.remove('show');
+  }
+}
+
+document.getElementById('btn-lowpower').addEventListener('click', () => setLowPower(!lowPower));
+
+// ═══════════════════════════════════════════════
+// AUTO-ROTATE
+// ═══════════════════════════════════════════════
+let autoRotate = true;
+const btnRotate = document.getElementById('btn-rotate');
+btnRotate.classList.add('active');
+btnRotate.addEventListener('click', () => {
+  autoRotate = !autoRotate;
+  autoRotate ? btnRotate.classList.add('active') : btnRotate.classList.remove('active');
+});
+
+// Reset camera
+document.getElementById('btn-reset').addEventListener('click', () => {
+  orbit.spherical.setFromVector3(new THREE.Vector3(...CFG.CAMERA_START));
+  orbit._dTheta = 0; orbit._dPhi = 0;
+});
+
+// ═══════════════════════════════════════════════
+// FPS MONITOR
+// ═══════════════════════════════════════════════
+let fps = 60, frameCount = 0, lastFpsTime = performance.now();
+const fpsBadge = document.getElementById('fps-badge');
+
+function updateFPS(now) {
+  frameCount++;
+  if (now - lastFpsTime >= 1000) {
+    fps = Math.round(frameCount * 1000 / (now - lastFpsTime));
+    frameCount = 0;
+    lastFpsTime = now;
+    const color = fps < 25 ? '#f87171' : fps < 45 ? '#fbbf24' : '#4ade80';
+    fpsBadge.innerHTML = `<span style="color:${color};font-weight:700">${fps}</span> FPS`;
+    if (fps < 25 && !lowPower && !autoLowPower) setLowPower(true, true);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// STAR SELECTION / RAYCASTING
+// ═══════════════════════════════════════════════
+const raycaster = new THREE.Raycaster();
+raycaster.params.Points.threshold = 0.4;
+const mouse = new THREE.Vector2();
+let selectedStar = null;
+let hoveredStar = null;
+
+const tooltip = document.getElementById('tooltip');
+
+function getRandomStarName() {
+  const prefixes = ['HD','HIP','GJ','Kepler','TIC','2MASS','SAO','TYC','WDS'];
+  const num = Math.floor(1000 + Math.random() * 200000);
+  return `${prefixes[Math.floor(Math.random()*prefixes.length)]} ${num}`;
+}
+
+function getRandomStarClass() {
+  const weights = [0,1,3,8,15,20,40];
+  let r = Math.random() * 87;
+  for (let i=0; i<weights.length; i++) { r -= weights[i]; if(r<=0) return STAR_CLASSES[i]; }
+  return 'M';
+}
+
+canvas.addEventListener('mousemove', e => {
+  if (orbit.dragging) { tooltip.style.opacity='0'; return; }
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  if (!galaxyMesh) return;
+  const hits = raycaster.intersectObject(galaxyMesh);
+  if (hits.length > 0) {
+    hoveredStar = hits[0].index;
+    canvas.style.cursor = 'pointer';
+    const starName = getStarName(hoveredStar);
+    tooltip.textContent = starName;
+    tooltip.style.opacity = '1';
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 10) + 'px';
+  } else {
+    hoveredStar = null;
+    canvas.style.cursor = 'crosshair';
+    tooltip.style.opacity = '0';
+  }
+});
+
+canvas.addEventListener('click', e => {
+  if (!galaxyMesh) return;
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObject(galaxyMesh);
+  if (hits.length > 0) {
+    selectedStar = hits[0].index;
+    openStarPanel(selectedStar);
+  }
+});
+
+document.getElementById('close-panel').addEventListener('click', () => {
+  document.getElementById('star-panel').classList.remove('visible');
+  selectedStar = null;
+});
+
+// ── Star name seeded from index ──
+function getStarName(idx) {
+  const prefixes = ['HD','HIP','GJ','Kepler','TIC','SAO'];
+  const seed = idx * 31337 + 7777;
+  const p = prefixes[seed % prefixes.length];
+  const n = 1000 + (seed * 13) % 199000;
+  return `${p} ${n}`;
+}
+
+function getStarClassFromIndex(idx) {
+  const i = (idx * 7) % STAR_CLASSES.length;
+  return STAR_CLASSES[i];
+}
+
+function openStarPanel(idx) {
+  const panel = document.getElementById('star-panel');
+  panel.classList.add('visible');
+
+  const name = getStarName(idx);
+  const cls  = getStarClassFromIndex(idx);
+  const arm  = starArmIndex[idx] ?? 0;
+  const dist = (50 + (idx * 17 % 4900)).toFixed(0);
+
+  document.getElementById('panel-star-name').textContent = name;
+  document.getElementById('panel-star-type').textContent = `Type ${cls} — ${ARM_NAMES[arm]}`;
+  document.getElementById('d-name').textContent  = name;
+  document.getElementById('d-temp').textContent  = CLASS_TEMPS[cls];
+  document.getElementById('d-class').textContent = `Spectral ${cls}`;
+  document.getElementById('d-dist').textContent  = `${dist} ly`;
+  document.getElementById('d-arm').textContent   = ARM_NAMES[arm];
+
+  document.getElementById('panel-loading').style.display = 'block';
+  document.getElementById('panel-data-wrap').style.display = 'none';
+  document.getElementById('panel-no-data').style.display = 'none';
+  document.getElementById('exo-list').innerHTML = '';
+
+  fetchExoplanets(name, idx);
+}
+
+// ═══════════════════════════════════════════════
+// NASA EXOPLANET ARCHIVE API
+// ═══════════════════════════════════════════════
+// Using the public TAP service — no API key required
+const NASA_API = 'https://exoplanetarchive.ipac.caltech.edu/TAP/sync';
+
+// Pool of real host stars to pick from
+const REAL_HOSTS = [
+  'Kepler-16','Kepler-22','HD 209458','55 Cnc','TRAPPIST-1',
+  'Kepler-452','GJ 667C','tau Ceti','HD 40307','Proxima Cen',
+  'Kepler-442','LHS 1140','K2-18','TOI-700','HR 8799',
+  'Kepler-11','HD 189733','WASP-39','GJ 1214','Kepler-62',
+];
+
+async function fetchExoplanets(starName, idx) {
+  const host = REAL_HOSTS[idx % REAL_HOSTS.length];
+  const query = encodeURIComponent(
+    `SELECT TOP 5 pl_name, pl_rade, pl_masse, pl_orbper, pl_eqt, st_dist FROM ps WHERE hostname = '${host}' AND pl_rade IS NOT NULL ORDER BY pl_orbper`
+  );
+  const url = `${NASA_API}?query=${query}&format=json`;
+
+  try {
+    const res = await fetch(url);
+    const data = await res.json();
+
+    document.getElementById('panel-loading').style.display = 'none';
+    document.getElementById('panel-data-wrap').style.display = 'block';
+
+    if (!data || data.length === 0) {
+      document.getElementById('exo-list').innerHTML = `<div style="color:var(--text-dim);font-size:0.75rem">No confirmed exoplanets found for this region.<br><span style="font-size:0.7rem;opacity:0.6">Try clicking another star.</span></div>`;
+      return;
+    }
+
+    const list = document.getElementById('exo-list');
+    list.innerHTML = '';
+    data.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'exo-card';
+      card.innerHTML = `
+        <div class="exo-name">${p.pl_name}</div>
+        <div class="exo-data">
+          <div class="exo-datum">Radius<br><strong>${p.pl_rade ? (+p.pl_rade).toFixed(2)+' R⊕' : 'N/A'}</strong></div>
+          <div class="exo-datum">Mass<br><strong>${p.pl_masse ? (+p.pl_masse).toFixed(2)+' M⊕' : 'N/A'}</strong></div>
+          <div class="exo-datum">Orbital Period<br><strong>${p.pl_orbper ? (+p.pl_orbper).toFixed(2)+' days' : 'N/A'}</strong></div>
+          <div class="exo-datum">Eq. Temp<br><strong>${p.pl_eqt ? Math.round(+p.pl_eqt)+' K' : 'N/A'}</strong></div>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+
+    // Show the real host star info above
+    document.getElementById('panel-star-name').textContent = `${host} system`;
+    document.getElementById('d-name').textContent = host;
+
+  } catch(err) {
+    document.getElementById('panel-loading').style.display = 'none';
+    document.getElementById('panel-data-wrap').style.display = 'block';
+    document.getElementById('exo-list').innerHTML = `
+      <div style="color:var(--text-dim);font-size:0.75rem">
+        Could not reach NASA API.<br>
+        <span style="font-size:0.7rem;opacity:0.6">Check your internet connection or try again.</span>
+      </div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════
+// SELECTION HIGHLIGHT RING
+// ═══════════════════════════════════════════════
+const ringGeo = new THREE.RingGeometry(0.15, 0.22, 32);
+const ringMat = new THREE.MeshBasicMaterial({ color: 0xfbbf24, side: THREE.DoubleSide, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending });
+const ring = new THREE.Mesh(ringGeo, ringMat);
+ring.visible = false;
+scene.add(ring);
+
+// ═══════════════════════════════════════════════
+// RENDER LOOP
+// ═══════════════════════════════════════════════
+let rotY = 0;
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const delta = clock.getDelta();
+
+  updateFPS(now);
+  updateCamera();
+
+  // Auto rotation
+  if (autoRotate && galaxyMesh) {
+    rotY += 0.0006;
+    if (galaxyMesh) galaxyMesh.rotation.y = rotY;
+    if (coreMesh)   coreMesh.rotation.y   = rotY * 1.4;
+    if (hazeMesh)   hazeMesh.rotation.y   = rotY * 0.5;
+    document.getElementById('stat-rot').textContent = (rotY * 180 / Math.PI % 360).toFixed(1);
+  }
+
+  // Selection ring billboard
+  if (selectedStar != null && starPositions3D[selectedStar]) {
+    const pos = starPositions3D[selectedStar].clone();
+    if (galaxyMesh) pos.applyEuler(galaxyMesh.rotation);
+    ring.position.copy(pos);
+    ring.quaternion.copy(camera.quaternion);
+    ring.visible = true;
+    ring.rotation.z += 0.02;
+    ringMat.opacity = 0.6 + 0.25 * Math.sin(now * 0.004);
+  } else {
+    ring.visible = false;
+  }
+
+  renderer.render(scene, camera);
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+buildGalaxy(CFG.STARS_HQ);
+animate();
+</script>
+</body>
+</html>
