@@ -360,8 +360,8 @@ const CFG = {
   ARM_TWIST: 4.5,
   CORE_STARS: 5000,
   HAZE_STARS: 8000,
-  STAR_SIZE_HQ: 1.8,
-  STAR_SIZE_LQ: 2.4,
+  STAR_SIZE_HQ: 0.1,
+  STAR_SIZE_LQ: 0.2,
   GALAXY_RADIUS: 14,
   CAMERA_START: [0, 12, 22],
 };
@@ -585,7 +585,7 @@ function starColor(arm, warmth, rand) {
   const [hMin, hMax] = palettes[arm];
   const h = warmth < 0.5 ? hMin : hMin + (hMax - hMin) * (warmth * 0.5);
   const s = 0.5 + rand * 0.5;
-  const l = 0.55 + rand * 0.4;
+  const l = 0.35 + rand * 0.25;
   return new THREE.Color().setHSL(h, s, l);
 }
 
