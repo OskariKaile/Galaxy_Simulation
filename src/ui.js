@@ -42,6 +42,7 @@ export class UI {
     this.iConst = $('iConst');
     this.iHip = $('iHip');
     this.iPlanets = $('iPlanets');
+    this.iDividerLabel = $('iDividerLabel');
 
     $('inspectorClose').addEventListener('click', () => this.hideInspector());
 
@@ -160,6 +161,17 @@ export class UI {
       (star.hip ? 'HIP ' + star.hip : '') +
       (star.hd ? (star.hip ? ' · ' : '') + 'HD ' + star.hd : '') || '—';
 
+    // Sol: skip API, show hardcoded solar system
+    const isSol = star.id === 0 || star.dist === 0;
+    if (isSol) {
+      if (this._inspectorAbort) { this._inspectorAbort.abort(); this._inspectorAbort = null; }
+      this.iDividerLabel.textContent = 'SOLAR · SYSTEM';
+      this.renderSolarSystem();
+      return;
+    }
+
+    this.iDividerLabel.textContent = 'EXOPLANETARY · DATA';
+
     // Fetch exoplanets
     if (this._inspectorAbort) this._inspectorAbort.abort();
     this._inspectorAbort = new AbortController();
@@ -178,6 +190,35 @@ export class UI {
         this.iPlanets.innerHTML =
           `<div class="planets__state">Lookup failed: ${err.message}</div>`;
       });
+  }
+
+  renderSolarSystem() {
+    const planets = [
+      { name: 'Mercury', periodDays: 87.97,    radiusEarth: 0.38,  massEarth: 0.055,   smaxisAU: 0.387,  tempK: 440  },
+      { name: 'Venus',   periodDays: 224.70,   radiusEarth: 0.95,  massEarth: 0.815,   smaxisAU: 0.723,  tempK: 737  },
+      { name: 'Earth',   periodDays: 365.25,   radiusEarth: 1.00,  massEarth: 1.000,   smaxisAU: 1.000,  tempK: 288  },
+      { name: 'Mars',    periodDays: 686.97,   radiusEarth: 0.53,  massEarth: 0.107,   smaxisAU: 1.524,  tempK: 210  },
+      { name: 'Jupiter', periodDays: 4332.59,  radiusEarth: 11.21, massEarth: 317.8,   smaxisAU: 5.203,  tempK: 165  },
+      { name: 'Saturn',  periodDays: 10759.22, radiusEarth: 9.45,  massEarth: 95.2,    smaxisAU: 9.537,  tempK: 134  },
+      { name: 'Uranus',  periodDays: 30688.50, radiusEarth: 4.01,  massEarth: 14.5,    smaxisAU: 19.191, tempK: 76   },
+      { name: 'Neptune', periodDays: 60182.00, radiusEarth: 3.88,  massEarth: 17.1,    smaxisAU: 30.069, tempK: 72   },
+    ];
+
+    const fmt = (v, digits = 2, suffix = '') =>
+      v == null ? '—' : v.toFixed(digits) + suffix;
+
+    this.iPlanets.innerHTML = planets.map(p => `
+      <div class="planet">
+        <div class="planet__name">${p.name}</div>
+        <div class="planet__grid">
+          <span>Orbital period</span><b>${fmt(p.periodDays, 2, ' d')}</b>
+          <span>Radius</span><b>${fmt(p.radiusEarth, 2, ' R⊕')}</b>
+          <span>Mass</span><b>${fmt(p.massEarth, 3, ' M⊕')}</b>
+          <span>Semi-major axis</span><b>${fmt(p.smaxisAU, 3, ' AU')}</b>
+          <span>Avg. temperature</span><b>${fmt(p.tempK, 0, ' K')}</b>
+        </div>
+      </div>
+    `).join('');
   }
 
   renderPlanets(planets, aliases) {

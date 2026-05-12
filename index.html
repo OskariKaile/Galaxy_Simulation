@@ -79,11 +79,18 @@
   <!-- ────────────────────────────────────────────────────────── -->
   <!-- Top-left: brand / mission badge                             -->
   <!-- ────────────────────────────────────────────────────────── -->
-  <header class="brand">
-    <div class="brand__mark">◈</div>
+  <header class="brand hud">
+     <div class="hud__corner hud__corner--tl"></div>
+    <div class="hud__corner hud__corner--tr"></div>
+    <div class="hud__corner hud__corner--bl"></div>
+    <div class="hud__corner hud__corner--br"></div> 
+
+    <div class="brand__mark"><img src="./assets/O-logo.png" /></div>
     <div class="brand__text">
       <div class="brand__name">HELIOS</div>
       <div class="brand__sub">Milky Way Explorer · v1.0</div>
+      <div class="brand__sub">By Oskari Kaile</div>
+
     </div>
   </header>
 
@@ -176,7 +183,7 @@
     </dl>
 
     <div class="inspector__divider">
-      <span>EXOPLANETARY · DATA</span>
+      <span id="iDividerLabel">EXOPLANETARY · DATA</span>
     </div>
 
     <div id="iPlanets" class="planets">
