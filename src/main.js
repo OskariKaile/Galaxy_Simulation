@@ -8,6 +8,7 @@ import { Galaxy, TIERS }   from './galaxy.js';
 import { FlightControls }  from './controls.js';
 import { PerformanceMonitor } from './performance.js';
 import { UI } from './ui.js';
+import { fetchAllHostStars } from './exoplanetAPI.js';
 
 // ────────────────────────────────────────────────────────────
 // 1. Bootstrap loading screen
@@ -63,20 +64,17 @@ async function main() {
 
   // Start the camera slightly above the Sun, looking toward the galactic center.
   // In HYG coordinates, the galactic center is roughly at (-8000 pc, 0, 0).
-  camera.position.set(0, 0.3, 1.5);
-  camera.lookAt(-1, 0, 0);
+  const SOL_POS  = new THREE.Vector3(0, 0.3, 1.5);
+  const SOL_LOOK = new THREE.Vector3(-1, 0, 0);
+  camera.position.copy(SOL_POS);
+  camera.lookAt(SOL_LOOK);
+  const SOL_QUAT = camera.quaternion.clone();
 
   // 4. Galaxy
   const galaxy = new Galaxy(catalog);
   scene.add(galaxy.points);
+  scene.add(galaxy.highlight);
 
-  // Faint reference grid that hints at the galactic plane.
-  // (Stylistic — does not encode any data.)
-  const grid = new THREE.GridHelper(2000, 40, 0x0a2a3a, 0x081820);
-  grid.position.y = 0;
-  grid.material.transparent = true;
-  grid.material.opacity = 0.12;
-  scene.add(grid);
 
   // 5. Controls
   const controls = new FlightControls(camera, canvas);
@@ -136,6 +134,8 @@ async function main() {
       const dy = tmpV.y - ndcY;
       const d  = Math.hypot(dx, dy);
       if (d > tolerance) continue;
+
+      if (!galaxy.isStarShown(i)) continue;
 
       // Prefer brighter (lower mag) and closer to cursor.
       const score = d + mags[i] * 0.002;
@@ -210,7 +210,104 @@ async function main() {
   }
   requestAnimationFrame(frame);
 
-  // 11. Keyboard quick-actions outside FlightControls
+  // 11. Exoplanets-only filter button
+  const exoBtn = document.getElementById('exoFilter');
+
+  // Build lookup maps from the reordered HYG stars once.
+  function buildLookup() {
+    const byHD  = new Map();
+    const byHIP = new Map();
+    const byName = new Map();
+    for (const s of galaxy.reorderedStars) {
+      if (s.hd)     byHD.set(parseInt(s.hd),   s.i);
+      if (s.hip)    byHIP.set(parseInt(s.hip),  s.i);
+      if (s.proper) byName.set(s.proper.toLowerCase().replace(/\s+/g, ''), s.i);
+      if (s.bf)     byName.set(s.bf.toLowerCase().replace(/\s+/g, ''),     s.i);
+    }
+    return { byHD, byHIP, byName };
+  }
+
+  function matchHostname(hostname, lookup) {
+    const h = hostname.trim();
+    const hd  = h.match(/^HD\s*(\d+)/i);
+    if (hd)  return lookup.byHD.get(parseInt(hd[1]))  ?? -1;
+    const hip = h.match(/^HIP\s*(\d+)/i);
+    if (hip) return lookup.byHIP.get(parseInt(hip[1])) ?? -1;
+    return lookup.byName.get(h.toLowerCase().replace(/\s+/g, '')) ?? -1;
+  }
+
+  exoBtn.addEventListener('click', async () => {
+    // Toggle off
+    if (galaxy.isFiltered()) {
+      galaxy.clearFilter();
+      exoBtn.classList.remove('is-active');
+      exoBtn.textContent = 'EXOPLANETS ONLY';
+      return;
+    }
+
+    exoBtn.classList.add('is-loading');
+    exoBtn.textContent = 'LOADING…';
+
+    try {
+      const hostnames = await fetchAllHostStars();
+      const lookup    = buildLookup();
+      const visible   = new Set();
+
+      for (const name of hostnames) {
+        const idx = matchHostname(name, lookup);
+        if (idx >= 0) visible.add(idx);
+      }
+
+      // Always keep Sol visible
+      if (galaxy.sunIndex >= 0) visible.add(galaxy.sunIndex);
+
+      galaxy.setFilter(visible);
+      exoBtn.classList.remove('is-loading');
+      exoBtn.classList.add('is-active');
+      exoBtn.textContent = `EXOPLANETS ONLY · ${visible.size}`;
+    } catch (err) {
+      exoBtn.classList.remove('is-loading');
+      exoBtn.textContent = 'FETCH FAILED — RETRY';
+      setTimeout(() => { exoBtn.textContent = 'EXOPLANETS ONLY'; }, 3000);
+    }
+  });
+
+  // 12. Return to Sol button
+  const returnBtn = document.getElementById('returnToSol');
+  returnBtn.addEventListener('click', () => {
+    returnBtn.classList.add('is-flying');
+    controls.exitLock();
+    controls.flyTo(SOL_POS, SOL_QUAT);
+    controls.onFlyDone = () => {
+      returnBtn.classList.remove('is-flying');
+      controls.onFlyDone = null;
+    };
+  });
+
+  // 12. Legend key lighting
+  const kbdMap = new Map();
+  document.querySelectorAll('kbd[data-key]').forEach(el => {
+    el.dataset.key.split(' ').forEach(code => {
+      if (!kbdMap.has(code)) kbdMap.set(code, []);
+      kbdMap.get(code).push(el);
+    });
+  });
+  window.addEventListener('keydown', e => {
+    kbdMap.get(e.code)?.forEach(el => el.classList.add('is-pressed'));
+  });
+  window.addEventListener('keyup', e => {
+    kbdMap.get(e.code)?.forEach(el => el.classList.remove('is-pressed'));
+  });
+
+  const clickKbd = document.getElementById('kbdClick');
+  canvas.addEventListener('mousedown', e => {
+    if (e.button === 0) clickKbd?.classList.add('is-pressed');
+  });
+  window.addEventListener('mouseup', e => {
+    if (e.button === 0) clickKbd?.classList.remove('is-pressed');
+  });
+
+  // 13. Keyboard quick-actions outside FlightControls
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') ui.hideInspector();
   });

@@ -13,6 +13,17 @@
     rel="stylesheet"
   />
   <link rel="stylesheet" href="./styles.css" />
+  <script>
+    function isMobile() {
+      return /Mobi|Android|iPhone|iPad|iPod|Touch/i.test(navigator.userAgent)
+        || (navigator.maxTouchPoints > 1 && window.innerWidth < 1024);
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+      if (isMobile()) {
+        document.getElementById('mobileBlock').classList.add('is-visible');
+      }
+    });
+  </script>
 
   <!-- Three.js via import map (no build step required) -->
   <script type="importmap">
@@ -25,6 +36,25 @@
   </script>
 </head>
 <body>
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- Mobile block screen                                         -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <div id="mobileBlock" class="mobile-block">
+    <div class="mobile-block__frame">
+      <div class="mobile-block__brackets" aria-hidden="true">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <div class="mobile-block__label">HELIOS // OBSERVATORY LINK</div>
+      <div class="mobile-block__icon" aria-hidden="true">⊕</div>
+      <h1 class="mobile-block__title">Desktop Required</h1>
+      <p class="mobile-block__body">
+        HELIOS renders 119,614 stars in real-time 3D using WebGL and mouse-based
+        flight controls. It is not designed for touchscreens or small displays.
+      </p>
+      <p class="mobile-block__hint">Open this page on a desktop or laptop computer.</p>
+    </div>
+  </div>
+
   <!-- ────────────────────────────────────────────────────────── -->
   <!-- Loading screen                                              -->
   <!-- ────────────────────────────────────────────────────────── -->
@@ -125,38 +155,50 @@
 
     <div class="hud__head">FLIGHT CONTROLS</div>
     <ul class="legend">
-      <li><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>translate</span></li>
-      <li><kbd>Space</kbd><kbd>Ctrl</kbd><span>up · down</span></li>
-      <li><kbd>Shift</kbd><span>boost (×8)</span></li>
+      <li><kbd data-key="KeyW">W</kbd><kbd data-key="KeyA">A</kbd><kbd data-key="KeyS">S</kbd><kbd data-key="KeyD">D</kbd><span>translate</span></li>
+      <li><kbd data-key="Space">Space</kbd><kbd data-key="ControlLeft ControlRight">Ctrl</kbd><span>up · down</span></li>
+      <li><kbd data-key="ShiftLeft ShiftRight">Shift</kbd><span>boost (×8)</span></li>
       <li><kbd>Mouse</kbd><span>look · click canvas to capture</span></li>
-      <li><kbd>+</kbd><kbd>−</kbd><span>cruise speed</span></li>
-      <li><kbd>Click</kbd><span>inspect star</span></li>
-      <li><kbd>Esc</kbd><span>release cursor</span></li>
+      <li><kbd data-key="Equal NumpadAdd">+</kbd><kbd data-key="Minus NumpadSubtract">−</kbd><span>cruise speed</span></li>
+      <li><kbd id="kbdClick">Click</kbd><span>inspect star</span></li>
+      <li><kbd data-key="Escape">Esc</kbd><span>release cursor</span></li>
     </ul>
   </aside>
 
   <!-- ────────────────────────────────────────────────────────── -->
-  <!-- Bottom-right: perf / settings                               -->
+  <!-- Bottom-right: actions + settings (flex row)                 -->
   <!-- ────────────────────────────────────────────────────────── -->
-  <aside class="hud hud--settings">
-    <div class="hud__corner hud__corner--tl"></div>
-    <div class="hud__corner hud__corner--tr"></div>
-    <div class="hud__corner hud__corner--bl"></div>
-    <div class="hud__corner hud__corner--br"></div>
+  <div class="hud-row--br">
+    <aside class="hud hud--actions">
+      <div class="hud__corner hud__corner--tl"></div>
+      <div class="hud__corner hud__corner--tr"></div>
+      <div class="hud__corner hud__corner--bl"></div>
+      <div class="hud__corner hud__corner--br"></div>
 
-    <div class="hud__head">RENDER MODE</div>
-    <div class="seg" role="tablist" aria-label="Render mode">
-      <button class="seg__btn" data-mode="high" role="tab">HIGH</button>
-      <button class="seg__btn is-active" data-mode="med" role="tab">MED</button>
-      <button class="seg__btn" data-mode="low" role="tab">LOW</button>
-    </div>
-    <label class="toggle">
-      <input type="checkbox" id="autoPerf" checked />
-      <span class="toggle__track"><span class="toggle__thumb"></span></span>
-      <span class="toggle__label">Auto · downshift if &lt; 30 fps</span>
-    </label>
-    <div class="hud__note" id="starCount">— stars rendered</div>
-  </aside>
+      <button id="returnToSol" class="btn-sol">RETURN TO SOL</button>
+      <button id="exoFilter" class="btn-sol btn-exo">EXOPLANETS ONLY</button>
+    </aside>
+
+    <aside class="hud hud--settings">
+      <div class="hud__corner hud__corner--tl"></div>
+      <div class="hud__corner hud__corner--tr"></div>
+      <div class="hud__corner hud__corner--bl"></div>
+      <div class="hud__corner hud__corner--br"></div>
+
+      <div class="hud__head">RENDER MODE</div>
+      <div class="seg" role="tablist" aria-label="Render mode">
+        <button class="seg__btn" data-mode="high" role="tab">HIGH</button>
+        <button class="seg__btn is-active" data-mode="med" role="tab">MED</button>
+        <button class="seg__btn" data-mode="low" role="tab">LOW</button>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="autoPerf" checked />
+        <span class="toggle__track"><span class="toggle__thumb"></span></span>
+        <span class="toggle__label">Auto · downshift if &lt; 30 fps</span>
+      </label>
+      <div class="hud__note" id="starCount">— stars rendered</div>
+    </aside>
+  </div>
 
   <!-- ────────────────────────────────────────────────────────── -->
   <!-- Star inspector panel                                        -->
@@ -169,25 +211,27 @@
     <div class="inspector__corner inspector__corner--bl"></div>
     <div class="inspector__corner inspector__corner--br"></div>
 
-    <div class="inspector__eyebrow" id="iEyebrow">STELLAR · OBJECT</div>
-    <h2 class="inspector__name" id="iName">—</h2>
-    <div class="inspector__subname" id="iAltName"></div>
+    <div class="inspector__scroll">
+      <div class="inspector__eyebrow" id="iEyebrow">STELLAR · OBJECT</div>
+      <h2 class="inspector__name" id="iName">—</h2>
+      <div class="inspector__subname" id="iAltName"></div>
 
-    <dl class="inspector__stats">
-      <div><dt>Distance</dt><dd id="iDist">—</dd></div>
-      <div><dt>Apparent mag.</dt><dd id="iMag">—</dd></div>
-      <div><dt>Absolute mag.</dt><dd id="iAbs">—</dd></div>
-      <div><dt>Spectral type</dt><dd id="iSpec">—</dd></div>
-      <div><dt>Constellation</dt><dd id="iConst">—</dd></div>
-      <div><dt>HIP / HD</dt><dd id="iHip">—</dd></div>
-    </dl>
+      <dl class="inspector__stats">
+        <div><dt>Distance</dt><dd id="iDist">—</dd></div>
+        <div><dt>Apparent mag.</dt><dd id="iMag">—</dd></div>
+        <div><dt>Absolute mag.</dt><dd id="iAbs">—</dd></div>
+        <div><dt>Spectral type</dt><dd id="iSpec">—</dd></div>
+        <div><dt>Constellation</dt><dd id="iConst">—</dd></div>
+        <div><dt>HIP / HD</dt><dd id="iHip">—</dd></div>
+      </dl>
 
-    <div class="inspector__divider">
-      <span id="iDividerLabel">EXOPLANETARY · DATA</span>
-    </div>
+      <div class="inspector__divider">
+        <span id="iDividerLabel">EXOPLANETARY · DATA</span>
+      </div>
 
-    <div id="iPlanets" class="planets">
-      <div class="planets__state">Querying NASA Exoplanet Archive…</div>
+      <div id="iPlanets" class="planets">
+        <div class="planets__state">Querying NASA Exoplanet Archive…</div>
+      </div>
     </div>
   </section>
 

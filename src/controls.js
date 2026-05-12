@@ -54,6 +54,11 @@ export class FlightControls {
 
     this.locked = false;
     this.onCruiseChange = null;
+
+    // Fly-to state
+    this._flying = false;
+    this._flyTarget = null;
+    this.onFlyDone = null;
   }
 
   dispose() {
@@ -120,8 +125,28 @@ export class FlightControls {
     return this.keys['ShiftLeft'] || this.keys['ShiftRight'] ? this.boostFactor : 1;
   }
 
+  /** Smoothly fly the camera to a target position + quaternion. */
+  flyTo(targetPos, targetQuat) {
+    this._flyTarget = { pos: targetPos.clone(), quat: targetQuat.clone() };
+    this._flying = true;
+    this.velocity.set(0, 0, 0);
+  }
+
   /** Move the camera according to current input state. */
   update(dt) {
+    if (this._flying) {
+      const t = 1 - Math.exp(-dt * 2.5);
+      this.camera.position.lerp(this._flyTarget.pos, t);
+      this.camera.quaternion.slerp(this._flyTarget.quat, t);
+      if (this.camera.position.distanceTo(this._flyTarget.pos) < 0.005) {
+        this.camera.position.copy(this._flyTarget.pos);
+        this.camera.quaternion.copy(this._flyTarget.quat);
+        this._flying = false;
+        this.onFlyDone?.();
+      }
+      return;
+    }
+
     // Build a local direction vector from key state.
     const fwd   = (this.keys['KeyW'] ? 1 : 0) - (this.keys['KeyS'] ? 1 : 0);
     const right = (this.keys['KeyD'] ? 1 : 0) - (this.keys['KeyA'] ? 1 : 0);

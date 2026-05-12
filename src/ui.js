@@ -130,6 +130,7 @@ export class UI {
   hideInspector() {
     this.inspector.hidden = true;
     this._activeStarIndex = -1;
+    this.galaxy.clearHighlight();
     if (this._inspectorAbort) { this._inspectorAbort.abort(); this._inspectorAbort = null; }
   }
 
@@ -139,7 +140,8 @@ export class UI {
     this._activeStarIndex = star.i;
 
     this.inspector.hidden = false;
-    this.inspector.scrollTop = 0;
+    this.inspector.querySelector('.inspector__scroll').scrollTop = 0;
+    this.galaxy.setHighlight(star.i);
 
     this.iEyebrow.textContent =
       star.spect ? `STELLAR · ${star.spect}` : 'STELLAR · OBJECT';

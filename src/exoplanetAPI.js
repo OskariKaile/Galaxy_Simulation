@@ -55,6 +55,20 @@ export function aliasesForStar(s) {
   return [...aliases];
 }
 
+// Fetch every confirmed exoplanet host star name in one bulk query.
+let _allHostsCache = null;
+export async function fetchAllHostStars({ signal } = {}) {
+  if (_allHostsCache) return _allHostsCache;
+  const query = `SELECT DISTINCT hostname FROM ps WHERE default_flag=1`;
+  const apiUrl = TAP_BASE + '?query=' + encodeURIComponent(query) + '&format=json';
+  const url = CORS_PROXY + encodeURIComponent(apiUrl);
+  const res = await fetch(url, { signal });
+  if (!res.ok) throw new Error('NASA Exoplanet Archive returned HTTP ' + res.status);
+  const data = await res.json();
+  _allHostsCache = new Set((Array.isArray(data) ? data : []).map(r => r.hostname));
+  return _allHostsCache;
+}
+
 // In-memory cache to avoid re-querying the same star.
 const cache = new Map();
 

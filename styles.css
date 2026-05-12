@@ -63,19 +63,107 @@ html, body {
 .hud__corner--br { bottom: 0px; right: 0px; border-left: 0;  border-top: 0; }
 
 /* ============================================================
+   MOBILE BLOCK
+   ============================================================ */
+.mobile-block {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(253, 122, 51, 0.06), transparent 60%),
+    var(--bg);
+  place-items: center;
+}
+.mobile-block.is-visible {
+  display: grid;
+}
+
+.mobile-block__frame {
+  position: relative;
+  width: min(420px, 90vw);
+  padding: 48px 36px;
+  border: 1px solid var(--line);
+  background: rgba(8, 12, 18, 0.8);
+  backdrop-filter: blur(8px);
+  text-align: center;
+}
+
+.mobile-block__brackets span {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--amber);
+  opacity: 0.7;
+}
+.mobile-block__brackets span:nth-child(1) { top: -1px;    left: -1px;  border-right: 0; border-bottom: 0; }
+.mobile-block__brackets span:nth-child(2) { top: -1px;    right: -1px; border-left: 0;  border-bottom: 0; }
+.mobile-block__brackets span:nth-child(3) { bottom: -1px; left: -1px;  border-right: 0; border-top: 0; }
+.mobile-block__brackets span:nth-child(4) { bottom: -1px; right: -1px; border-left: 0;  border-top: 0; }
+
+.mobile-block__label {
+  font-size: 10px;
+  letter-spacing: 0.32em;
+  color: var(--amber);
+  margin-bottom: 28px;
+}
+.mobile-block__icon {
+  font-size: 48px;
+  color: var(--amber);
+  text-shadow: 0 0 24px var(--amber-glow);
+  margin-bottom: 18px;
+  line-height: 1;
+}
+.mobile-block__title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 32px;
+  line-height: 1.1;
+  margin: 0 0 18px;
+  color: #fffaf0;
+}
+.mobile-block__body {
+  font-size: 12px;
+  color: var(--ink-dim);
+  line-height: 1.7;
+  margin: 0 0 16px;
+  letter-spacing: 0.02em;
+}
+.mobile-block__hint {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--cyan);
+  margin: 0;
+}
+
+/* ============================================================
    BOOT / LOADING
    ============================================================ */
 .boot {
   position: fixed;
   inset: 0;
   z-index: 1000;
+  display: grid;
+  place-items: center;
+  /* phase 2: whole overlay fades — starts strictly after bg is gone */
+  transition: opacity 0.7s ease 0.6s, visibility 0s 1.4s;
+}
+/* The full-screen dark background lives here so it can fade independently */
+.boot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
   background:
     radial-gradient(ellipse at 50% 40%, rgba(95, 216, 255, 0.06), transparent 60%),
     radial-gradient(ellipse at 70% 80%, rgba(255, 180, 84, 0.04), transparent 60%),
     var(--bg);
-  display: grid;
-  place-items: center;
-  transition: opacity 0.7s ease 0.2s, visibility 0s 0.9s;
+  /* phase 1: background fades first */
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+.boot.is-done::before {
+  opacity: 0;
 }
 .boot.is-done {
   opacity: 0;
@@ -84,11 +172,11 @@ html, body {
 
 .boot__frame {
   position: relative;
+  z-index: 1;
   width: min(560px, 88vw);
   padding: 48px 44px;
   border: 1px solid var(--line);
-  background: rgba(8, 12, 18, 0.7);
-  backdrop-filter: blur(8px);
+  background: rgb(8, 12, 18);
 }
 
 .boot__brackets span {
@@ -221,8 +309,55 @@ html, body {
 }
 
 .hud--telemetry { top: 22px; right: 24px; }
-.hud--legend    { bottom: 22px; left: 24px; min-width: 260px; }
-.hud--settings  { bottom: 22px; right: 24px; min-width: 240px; }
+.hud--legend    { bottom: 22px; left: 24px; min-width: 260px; height: 260px; }
+
+.hud-row--br {
+  position: fixed;
+  bottom: 22px;
+  right: 24px;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 10;
+}
+.hud-row--br .hud {
+  position: static;
+}
+.hud--actions { min-width: 180px; }
+.hud--settings { min-width: 240px; }
+
+.btn-sol { margin-bottom: 10px; }
+.btn-sol:last-child { margin-bottom: 0; }
+
+.btn-sol {
+  display: block;
+  width: 100%;
+  margin-bottom: 16px;
+  padding: 8px 8px;
+  background: transparent;
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.26em;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-sol:hover {
+  background: var(--amber);
+  color: #1a0f00;
+  box-shadow: 0 0 14px var(--amber-glow);
+}
+.btn-sol.is-flying {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+}
+.btn-exo { border-color: var(--cyan); color: var(--cyan); margin-bottom: 16px; }
+.btn-exo:hover { background: var(--cyan); color: #001a14; box-shadow: 0 0 14px var(--cyan-glow); }
+.btn-exo.is-active { background: var(--cyan); color: #001a14; }
+.btn-exo.is-loading { opacity: 0.6; cursor: default; pointer-events: none; }
 
 .hud__list { margin: 0; padding: 0; }
 .hud__list > div {
@@ -278,6 +413,17 @@ kbd {
   background: rgba(255, 255, 255, 0.03);
   color: var(--ink);
   letter-spacing: 0.04em;
+  transition: background 0.06s ease, color 0.06s ease,
+              border-color 0.06s ease, transform 0.06s ease,
+              box-shadow 0.06s ease;
+}
+kbd.is-pressed {
+  background: var(--amber);
+  color: #1a0f00;
+  border-color: var(--amber);
+  border-bottom-width: 1px;
+  transform: translateY(1px);
+  box-shadow: 0 0 8px var(--amber-glow);
 }
 
 /* ============================================================
@@ -454,12 +600,17 @@ kbd {
   transform: none;
   z-index: 20;
   width: 360px;
-  overflow-y: auto;
-  padding: 28px 28px 24px;
+  overflow: hidden;
   background: rgba(8, 12, 18, 0.92);
   border: 1px solid var(--line-strong);
   backdrop-filter: blur(10px);
   animation: panelIn 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.inspector__scroll {
+  height: 100%;
+  overflow-y: auto;
+  padding: 28px 28px 24px;
 }
 .inspector[hidden] { display: none; }
 
@@ -594,9 +745,9 @@ kbd {
 }
 
 /* Scrollbar (webkit) */
-.inspector::-webkit-scrollbar { width: 4px; }
-.inspector::-webkit-scrollbar-track { background: transparent; }
-.inspector::-webkit-scrollbar-thumb { background: var(--line-strong); }
+.inspector__scroll::-webkit-scrollbar { width: 4px; }
+.inspector__scroll::-webkit-scrollbar-track { background: transparent; }
+.inspector__scroll::-webkit-scrollbar-thumb { background: var(--line-strong); }
 
 /* ============================================================
    RESPONSIVE — keep usable on small screens
