@@ -1,10 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
+      <!--
+  ░█████╗░░██╗░░██╗
+  ██╔══██╗░██║░██╔╝
+  ██║░░██║░█████╔╝░
+  ██║░░██║░██╔═██╗░
+  ╚█████╔╝░██║░░██╗
+  ░╚════╝░░╚═╝░░╚═╝
+-->
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="An interactive 3D map of the Milky Way built from real star data (HYG database) and live NASA exoplanet records." />
-  <title>HELIOS — Milky Way Explorer</title>
+  <meta name="description" content="HELIOS is an interactive 3D Milky Way explorer by Oskari Kaile — 119,614 real stars from the HYG database, live NASA exoplanet data, and WebGL flight controls." />
+  <meta name="author" content="Oskari Kaile" />
+  <meta name="robots" content="index, follow" />
+  <title>HELIOS — Milky Way Explorer · Oskari Kaile</title>
+
+  <meta property="og:title" content="HELIOS — Milky Way Explorer · Oskari Kaile" />
+  <meta property="og:description" content="HELIOS is an interactive 3D Milky Way explorer — 119,614 real stars from the HYG database, live NASA exoplanet data, and WebGL flight controls." />
+  <meta property="og:url" content="https://oskarikaile.github.io/galaxy_simulation/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Oskari Kaile" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="HELIOS — Milky Way Explorer · Oskari Kaile" />
+  <meta name="twitter:description" content="Interactive 3D Milky Way with 119,614 real stars and live NASA exoplanet data. Built by Oskari Kaile." />
+  <meta name="twitter:creator" content="@oskarikaile" />
+
+  <link rel="canonical" href="https://oskarikaile.github.io/galaxy_simulation/" />
+  <link rel="author" href="https://oskarikaile.github.io/" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "HELIOS — Milky Way Explorer",
+    "description": "Interactive 3D map of the Milky Way built from 119,614 real stars (HYG v3 database) and live NASA exoplanet records.",
+    "url": "https://oskarikaile.github.io/galaxy_simulation/",
+    "applicationCategory": "EducationalApplication",
+    "operatingSystem": "Web",
+    "author": {
+      "@type": "Person",
+      "name": "Oskari Kaile",
+      "url": "https://oskarikaile.github.io/"
+    },
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "Oskari Kaile",
+      "url": "https://oskarikaile.github.io/"
+    }
+  }
+  </script>
+  <link rel="icon" type="image/png" href="assets\O.png">
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -82,10 +129,7 @@
     </div>
   </div>
 
-  <!-- ────────────────────────────────────────────────────────── -->
-  <!-- WebGL canvas mount                                          -->
-  <!-- ────────────────────────────────────────────────────────── -->
-  <canvas id="stage"></canvas>
+
 
   <!-- "You are here" label tracks the Sun via JS -->
   <div id="solLabel" class="sol-label" hidden>
@@ -119,7 +163,7 @@
     <div class="brand__text">
       <div class="brand__name">HELIOS</div>
       <div class="brand__sub">Milky Way Explorer · v1.0</div>
-      <div class="brand__sub">By Oskari Kaile</div>
+      <div class="brand__sub"><a href="https://oskarikaile.github.io/" target="_blank" rel="noopener noreferrer">By Oskari Kaile</a></div>
 
     </div>
   </header>
@@ -234,6 +278,11 @@
       </div>
     </div>
   </section>
+
+    <!-- ────────────────────────────────────────────────────────── -->
+  <!-- WebGL canvas mount                                          -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <canvas id="stage"></canvas>
 
   <!-- App -->
   <script type="module" src="./src/main.js"></script>

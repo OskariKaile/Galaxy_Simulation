@@ -282,6 +282,15 @@ html, body {
   color: var(--ink-faint);
   margin-top: 4px;
 }
+.brand__sub a {
+  color: var(--cyan);
+  text-decoration: none;
+  transition: color 0.15s ease;
+  pointer-events: auto;
+}
+.brand__sub a:hover {
+  color: var(--ink);
+}
 
 /* ============================================================
    HUD PANELS (generic)
