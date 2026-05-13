@@ -4,7 +4,7 @@
 
 An interactive 3D map of the Milky Way rendered in the browser. Fly through 119,614 real stars from the HYG stellar catalog, inspect individual stars, and pull live exoplanet data straight from the NASA Exoplanet Archive.
 
-![HELIOS screenshot](assets/O-logo.png)
+![HELIOS screenshot](assets/screenshot.png)
 
 > Built by [Oskari Kaile](https://oskarikaile.github.io/)
 
