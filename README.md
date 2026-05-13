@@ -59,11 +59,11 @@ An interactive 3D map of the Milky Way rendered in the browser. Fly through 119,
 │   ├── exoplanetAPI.js # NASA TAP queries
 │   └── performance.js  # FPS monitor, auto-downshift logic
 └── data/
-│    └── hyg_v42.csv     # HYG stellar catalog
+│    └── hyg_v42.csv    # HYG stellar catalog
 └── assets/
-    └── O-logo.png     # Logo
-    └── O.png          # Mini Logo
-    └── screenshot.png # screenshot of the project
+    └── O-logo.png      # Logo
+    └── O.png           # Mini Logo
+    └── screenshot.png  # screenshot of the project
 ```
 
 ---
