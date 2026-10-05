@@ -1,42 +1,17 @@
 // ============================================================
 // exoplanetAPI.js
-// Queries the NASA Exoplanet Archive's TAP (Table Access
-// Protocol) endpoint for confirmed planets orbiting a given
-// host star.
+// Looks up confirmed planets orbiting a given host star.
 //
-// API docs: https://exoplanetarchive.ipac.caltech.edu/docs/TAP/usingTAP.html
+// Data comes from a snapshot of the NASA Exoplanet Archive
+// stored in data/exoplanets.json. The archive's TAP endpoint
+// doesn't send CORS headers, so it can't be queried directly
+// from the browser. Refresh the snapshot with:
+//
+//   node scripts/update-exoplanets.mjs
 // ============================================================
 
-const TAP_BASE = "https://exoplanetarchive.ipac.caltech.edu/TAP/sync";
-const CORS_PROXY = "https://corsproxy.io/?";
-
-// Build a TAP ADQL query. We try several aliases of the host
-// star's name because exoplanet records use mixed nomenclatures.
-function buildQuery(aliases) {
-  // Quote-escape each alias.
-  const ors = aliases
-    .filter(Boolean)
-    .map((a) => `hostname='${a.replace(/'/g, "''")}'`)
-    .join(" OR ");
-
-  if (!ors) return null;
-
-  // Pick the columns we actually display.
-  const cols = [
-    "pl_name", // planet name
-    "hostname",
-    "discoverymethod",
-    "disc_year",
-    "pl_orbper", // orbital period (days)
-    "pl_rade", // radius (Earth radii)
-    "pl_bmasse", // mass (Earth masses)
-    "pl_eqt", // equilibrium temp (K)
-    "pl_orbsmax", // semi-major axis (AU)
-    "st_spectype",
-  ].join(",");
-
-  return `SELECT ${cols} FROM ps WHERE (${ors}) AND default_flag=1`;
-}
+const DATA_URL = "data/exoplanets.json";
+const SOURCE = "NASA Exoplanet Archive";
 
 // Generate plausible host-star aliases from a HYG row.
 export function aliasesForStar(s) {
@@ -55,64 +30,63 @@ export function aliasesForStar(s) {
   return [...aliases];
 }
 
-// Fetch every confirmed exoplanet host star name in one bulk query.
-let _allHostsCache = null;
-export async function fetchAllHostStars({ signal } = {}) {
-  if (_allHostsCache) return _allHostsCache;
-  const query = `SELECT DISTINCT hostname FROM ps WHERE default_flag=1`;
-  const apiUrl = TAP_BASE + '?query=' + encodeURIComponent(query) + '&format=json';
-  const url = CORS_PROXY + encodeURIComponent(apiUrl);
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error('NASA Exoplanet Archive returned HTTP ' + res.status);
-  const data = await res.json();
-  _allHostsCache = new Set((Array.isArray(data) ? data : []).map(r => r.hostname));
-  return _allHostsCache;
+// Load the snapshot once and index planets by host star name.
+let _byHostPromise = null;
+function loadByHost() {
+  if (_byHostPromise) return _byHostPromise;
+  _byHostPromise = fetch(DATA_URL)
+    .then((res) => {
+      if (!res.ok) throw new Error("Exoplanet data returned HTTP " + res.status);
+      return res.json();
+    })
+    .then(({ cols, rows }) => {
+      const byHost = new Map();
+      for (const r of rows) {
+        const row = Object.fromEntries(cols.map((c, i) => [c, r[i]]));
+        const planet = {
+          name: row.pl_name,
+          hostname: row.hostname,
+          method: row.discoverymethod,
+          year: row.disc_year,
+          periodDays: row.pl_orbper,
+          radiusEarth: row.pl_rade,
+          massEarth: row.pl_bmasse,
+          tempK: row.pl_eqt,
+          smaxisAU: row.pl_orbsmax,
+          starSpectype: row.st_spectype,
+        };
+        if (!byHost.has(row.hostname)) byHost.set(row.hostname, []);
+        byHost.get(row.hostname).push(planet);
+      }
+      return byHost;
+    })
+    .catch((err) => {
+      _byHostPromise = null; // allow retry
+      throw err;
+    });
+  return _byHostPromise;
 }
 
-// In-memory cache to avoid re-querying the same star.
-const cache = new Map();
+// Every confirmed exoplanet host star name.
+export async function fetchAllHostStars() {
+  const byHost = await loadByHost();
+  return new Set(byHost.keys());
+}
 
 export async function fetchExoplanets(star, { signal } = {}) {
   const aliases = aliasesForStar(star);
   if (aliases.length === 0) {
-    return { aliases: [], planets: [], source: "NASA Exoplanet Archive" };
+    return { aliases: [], planets: [], source: SOURCE };
   }
 
-  const key = aliases.join("|");
-  if (cache.has(key)) return cache.get(key);
+  const byHost = await loadByHost();
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
 
-  const query = buildQuery(aliases);
-  if (!query) return { aliases, planets: [], source: "NASA Exoplanet Archive" };
-
-  const apiUrl =
-    TAP_BASE + "?query=" + encodeURIComponent(query) + "&format=json";
-
-  const url = CORS_PROXY + encodeURIComponent(apiUrl);
-
-  const res = await fetch(url, { signal });
-  if (!res.ok) {
-    throw new Error("NASA Exoplanet Archive returned HTTP " + res.status);
+  const planets = [];
+  for (const a of aliases) {
+    const found = byHost.get(a);
+    if (found) planets.push(...found);
   }
-  const data = await res.json();
 
-  const planets = (Array.isArray(data) ? data : []).map((row) => ({
-    name: row.pl_name,
-    hostname: row.hostname,
-    method: row.discoverymethod,
-    year: row.disc_year,
-    periodDays: row.pl_orbper,
-    radiusEarth: row.pl_rade,
-    massEarth: row.pl_bmasse,
-    tempK: row.pl_eqt,
-    smaxisAU: row.pl_orbsmax,
-    starSpectype: row.st_spectype,
-  }));
-
-  const result = {
-    aliases,
-    planets,
-    source: "NASA Exoplanet Archive",
-  };
-  cache.set(key, result);
-  return result;
+  return { aliases, planets, source: SOURCE };
 }
